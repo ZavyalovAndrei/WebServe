@@ -5,13 +5,13 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public class ServerRunnable implements Runnable {
-    private final Socket socket;
-    private final List<String> validPaths;
+public class Server implements Runnable {
+    private static Socket socket;
+    private static List<String> validPaths;
 
-    public ServerRunnable(Socket socket, List<String> validPaths) {
-        this.socket = socket;
-        this.validPaths = validPaths;
+    public Server(Socket socket, List<String> validPaths) {
+        Server.socket = socket;
+        Server.validPaths = validPaths;
     }
 
     @Override
@@ -26,8 +26,19 @@ public class ServerRunnable implements Runnable {
             if (parts.length != 3) {
                 socket.close();
             }
-
-            final var path = parts[1];
+            connectionProcessing(parts[1], out);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    private static void connectionProcessing (String path, BufferedOutputStream out) {
+        try {
             if (!validPaths.contains(path)) {
                 out.write((
                         "HTTP/1.1 404 Not Found\r\n" +
@@ -73,4 +84,6 @@ public class ServerRunnable implements Runnable {
             e.printStackTrace();
         }
     }
+
 }
+
