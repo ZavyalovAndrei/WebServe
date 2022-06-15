@@ -1,31 +1,40 @@
-import java.io.*;
-import java.net.ServerSocket;
-import java.util.List;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class Main {
-    private static final int PORT = 9999;
-    private static final int THREAD_QUANTITY = 64;
+    protected static final int PORT = 9999;
+    protected static final int THREAD_QUANTITY = 64;
+    protected static final int REQUEST_PARTS = 3;
+    protected static final Path FILES_FOLDER_PATH = Path.of(".", "public");
 
     public static void main(String[] args) {
-        final var validPaths = List.of("/index.html", "/spring.svg", "/spring.png",
-                "/resources.html", "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html",
-                "/events.html", "/events.js");
-        try {
-            final ServerSocket servSocket = new ServerSocket(PORT);
-            final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_QUANTITY);
-            while (true) {
-                try {
-                    final var socket = servSocket.accept();
-                    final var server = new Server(socket, validPaths);
-                    threadPool.execute(server);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+        final var server = new Server();
+        Runnable task = () -> server.run();
+        Thread thread = new Thread(task);
+        thread.start();
+        System.out.println("Server running");
+        Server.addHandler(RequestType.GET, "/messages.html", (request, responseStream) -> {
+            try {
+                final var filePath = Path.of(String.valueOf(Main.FILES_FOLDER_PATH), "/getmessages.html");
+                Server.successfulResponse(responseStream, Files.probeContentType(filePath), Files.size(filePath));
+                Files.copy(filePath, responseStream);
+                responseStream.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        });
+
+        Server.addHandler(RequestType.POST, "/messages.html", (request, responseStream) -> {
+            try {
+                final var filePath = Path.of(String.valueOf(Main.FILES_FOLDER_PATH), "/postmessages.html");
+                Server.successfulResponse(responseStream, Files.probeContentType(filePath), Files.size(filePath));
+                Files.copy(filePath, responseStream);
+                responseStream.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
     }
 }
