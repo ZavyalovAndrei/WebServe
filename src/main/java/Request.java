@@ -1,7 +1,8 @@
+
 public class Request {
 
     private final String path;
-    private String protocol;
+    private final String protocol;
     private final RequestType requestType;
 
     public Request(RequestType requestType, String path, String protocol) {
@@ -16,5 +17,11 @@ public class Request {
 
     public RequestType getRequestType() {
         return requestType;
+    }
+    public String getQueryParam(String name) {
+return null;
+    }
+    public String getQueryParams() {
+        return  null;
     }
 }

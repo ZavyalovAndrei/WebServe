@@ -1,9 +1,15 @@
+import org.apache.http.HttpEntity;
+import org.apache.http.client.utils.URLEncodedUtils;
+
 import java.io.*;
 import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.concurrent.*;
+import java.util.*;
+
 
 public class Server {
 
@@ -43,13 +49,30 @@ public class Server {
         }
     }
 
-    protected static void processingConnection(Request request, BufferedOutputStream out, Socket socket) {
+    protected static void processingConnection(BufferedInputStream in, BufferedOutputStream out, Socket socket) {
         try {
+            in.mark(Main.REQUEST_LINE_LIMIT);
+            final byte[] buffer = new byte[Main.REQUEST_LINE_LIMIT];
+            final int read = in.read(buffer);
+            final byte[] requestLineDelimiter = new byte[]{'\r', '\n'};
+            final int requestLineEnd = indexOf(buffer, requestLineDelimiter, 0, read);
+            if (requestLineEnd == -1) {
+                notFoundResponse(out);
+                out.flush();
+                socket.close();
+            }
+            Request request = parsRequest(buffer, out, socket, requestLineEnd);
             if (((handlers.get(request.getRequestType())).get(request.getPath()) == null)) {
                 notFoundResponse(out);
                 out.flush();
                 socket.close();
-            } else {
+//            } else if () {
+//                in.mark(Main.REQUEST_LINE_LIMIT);
+//                final byte[] buffer = new byte[Main.REQUEST_LINE_LIMIT];
+//                final int read = in.read(buffer);
+
+            }else {
+                System.out.println();
                 ((handlers.get(request.getRequestType())).get(request.getPath())).handle(request, out);
             }
         } catch (IOException e) {
@@ -113,5 +136,35 @@ public class Server {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static Request parsRequest(byte[] buffer, BufferedOutputStream out, Socket socket, int requestLineEnd) {
+        Request request = null;
+        try {
+            final var requestLine = new String(Arrays.copyOf(buffer, requestLineEnd)).split(" ");
+            URLEncodedUtils.parse(URI.create(new String(buffer, StandardCharsets.UTF_8)), " ");
+            if (requestLine.length != Main.REQUEST_PARTS) {
+                notFoundResponse(out);
+                socket.close();
+            } else {
+                request = new Request(RequestType.valueOf(requestLine[0]), requestLine[1], requestLine[2]);
+
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return request;
+    }
+    private static int indexOf(byte[] array, byte[] target, int start, int max) {
+        outer:
+        for (int i = start; i < max - target.length + 1; i++) {
+            for (int j = 0; j < target.length; j++) {
+                if (array[i + j] != target[j]) {
+                    continue outer;
+                }
+            }
+            return i;
+        }
+        return -1;
     }
 }
