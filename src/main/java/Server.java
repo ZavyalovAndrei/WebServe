@@ -7,33 +7,29 @@ import java.util.concurrent.*;
 
 public class Server {
 
-    private static ConcurrentHashMap<RequestType, ConcurrentHashMap<String, Handlers>> handlers =
-            new ConcurrentHashMap<>() {{
-                put(RequestType.GET, new ConcurrentHashMap<>() {{
-                    put("/index.html", (Handlers) Server::getFile);
-                    put("/spring.svg", (Handlers) Server::getFile);
-                    put("/spring.png", (Handlers) Server::getFile);
-                    put("/resources.html", (Handlers) Server::getFile);
-                    put("/styles.css", (Handlers) Server::getFile);
-                    put("/app.js", (Handlers) Server::getFile);
-                    put("/links.html", (Handlers) Server::getFile);
-                    put("/forms.html", (Handlers) Server::getFile);
-                    put("/classic.html", (Handlers) Server::getTime);
-                    put("/events.html", (Handlers) Server::getFile);
-                    put("/events.js", (Handlers) Server::getFile);
-                }});
-                put(RequestType.POST, new ConcurrentHashMap<>());
-            }};
+    private static int threadQuantity;
+    protected static final Path FILES_FOLDER_PATH = Path.of(".", "public");
+    private Server server;
+    private int port;
+    private ConcurrentHashMap<RequestType, ConcurrentHashMap<String, Handlers>> handlers = new ConcurrentHashMap<>() {{
+        put(RequestType.GET, new ConcurrentHashMap<>());
+        put(RequestType.POST, new ConcurrentHashMap<>());
 
-    protected void run() {
+    }};
+
+    public Server(int threadQuantity) {
+        this.threadQuantity = threadQuantity;
+    }
+
+    protected void runServer() {
         try {
-            final ServerSocket servSocket = new ServerSocket(Main.PORT);
-            final ExecutorService threadPool = Executors.newFixedThreadPool(Main.THREAD_QUANTITY);
+            final ServerSocket servSocket = new ServerSocket(port);
+            final ExecutorService threadPool = Executors.newFixedThreadPool(threadQuantity);
             while (true) {
                 try {
                     final var socket = servSocket.accept();
-                    final var server = new ServerRunnable(socket);
-                    threadPool.execute(server);
+                    final var threadServer = new ServerRunnable(socket, server);
+                    threadPool.execute(threadServer);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -43,7 +39,7 @@ public class Server {
         }
     }
 
-    protected static void processingConnection(Request request, BufferedOutputStream out, Socket socket) {
+    protected void processingConnection(Request request, BufferedOutputStream out, Socket socket) {
         try {
             if (((handlers.get(request.getRequestType())).get(request.getPath()) == null)) {
                 notFoundResponse(out);
@@ -57,7 +53,7 @@ public class Server {
         }
     }
 
-    private static void notFoundResponse(BufferedOutputStream out) {
+    private void notFoundResponse(BufferedOutputStream out) {
         try {
             out.write((
                     "HTTP/1.1 404 Not Found\r\n" +
@@ -70,7 +66,7 @@ public class Server {
         }
     }
 
-    protected static void successfulResponse(BufferedOutputStream out, String mimeType, long length) {
+    protected void successfulResponse(BufferedOutputStream out, String mimeType, long length) {
         try {
             out.write((
                     "HTTP/1.1 200 OK\r\n" +
@@ -84,13 +80,13 @@ public class Server {
         }
     }
 
-    protected static void addHandler(RequestType requestType, String path, Handlers handler) {
+    protected void addHandler(RequestType requestType, String path, Handlers handler) {
         (handlers.get(requestType)).put(path, handler);
     }
 
-    protected static void getFile(Request request, BufferedOutputStream out) {
+    private void getFile(Request request, BufferedOutputStream out) {
         try {
-            final var filePath = Path.of(String.valueOf(Main.FILES_FOLDER_PATH), request.getPath());
+            final var filePath = Path.of(String.valueOf(getFolderPath()), request.getPath());
             successfulResponse(out, Files.probeContentType(filePath), Files.size(filePath));
             Files.copy(filePath, out);
             out.flush();
@@ -99,9 +95,9 @@ public class Server {
         }
     }
 
-    protected static void getTime(Request request, BufferedOutputStream out) {
+    protected void getTime(Request request, BufferedOutputStream out) {
         try {
-            final var filePath = Path.of(String.valueOf(Main.FILES_FOLDER_PATH), request.getPath());
+            final var filePath = Path.of(String.valueOf(getFolderPath()), request.getPath());
             final var template = Files.readString(filePath);
             final var content = template.replace(
                     "{time}",
@@ -113,5 +109,29 @@ public class Server {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    protected static Path getFolderPath() {
+        return FILES_FOLDER_PATH;
+    }
+
+    protected void listen(int port, Server server) {
+        this.server = server;
+        this.port = port;
+        handlers.get(RequestType.GET).put("/index.html", (Handlers) server::getFile);
+        handlers.get(RequestType.GET).put("/spring.svg", (Handlers) server::getFile);
+        handlers.get(RequestType.GET).put("/spring.png", (Handlers) server::getFile);
+        handlers.get(RequestType.GET).put("/resources.html", (Handlers) server::getFile);
+        handlers.get(RequestType.GET).put("/styles.css", (Handlers) server::getFile);
+        handlers.get(RequestType.GET).put("/app.js", (Handlers) server::getFile);
+        handlers.get(RequestType.GET).put("/links.html", (Handlers) server::getFile);
+        handlers.get(RequestType.GET).put("/forms.html", (Handlers) server::getFile);
+        handlers.get(RequestType.GET).put("/classic.html", (Handlers) server::getTime);
+        handlers.get(RequestType.GET).put("/events.html", (Handlers) server::getFile);
+        handlers.get(RequestType.GET).put("/events.js", (Handlers) server::getFile);
+        Runnable task = () -> server.runServer();
+        Thread thread = new Thread(task);
+        thread.start();
+
     }
 }

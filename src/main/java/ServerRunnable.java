@@ -2,10 +2,13 @@ import java.io.*;
 import java.net.*;
 
 public class ServerRunnable implements Runnable {
-    private static Socket socket;
+    private final Socket socket;
+    private final Server server;
 
-    public ServerRunnable(Socket socket) {
-        ServerRunnable.socket = socket;
+
+    public ServerRunnable(Socket socket, Server server) {
+        this.socket = socket;
+        this.server = server;
     }
 
     @Override
@@ -13,7 +16,7 @@ public class ServerRunnable implements Runnable {
         try {
             final var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             final var out = new BufferedOutputStream(socket.getOutputStream());
-            Server.processingConnection(parsRequest(in), out, socket);
+            server.processingConnection(parsRequest(in), out, socket);
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -25,12 +28,13 @@ public class ServerRunnable implements Runnable {
         }
     }
 
-    private static Request parsRequest(BufferedReader in) {
+    private Request parsRequest(BufferedReader in) {
         Request request = null;
         try {
             final var requestLine = in.readLine();
             final var parts = requestLine.split(" ");
-            if (parts.length != Main.REQUEST_PARTS) {
+            int requestParts = 3;
+            if (parts.length != requestParts) {
                 socket.close();
             } else {
                 request = new Request(RequestType.valueOf(parts[0]), parts[1], parts[2]);
