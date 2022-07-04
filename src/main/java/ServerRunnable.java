@@ -1,13 +1,14 @@
-import org.apache.http.client.utils.URLEncodedUtils;
-
 import java.io.*;
 import java.net.*;
 
 public class ServerRunnable implements Runnable {
-    private static Socket socket;
+    private final Socket socket;
+    private final Server server;
 
-    public ServerRunnable(Socket socket) {
-        ServerRunnable.socket = socket;
+
+    public ServerRunnable(Socket socket, Server server) {
+        this.socket = socket;
+        this.server = server;
     }
 
     @Override
@@ -15,7 +16,7 @@ public class ServerRunnable implements Runnable {
         try {
             final var in = new BufferedInputStream(socket.getInputStream());
             final var out = new BufferedOutputStream(socket.getOutputStream());
-            Server.processingConnection(in, out, socket);
+            server.processingConnection(in, out, socket);
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
