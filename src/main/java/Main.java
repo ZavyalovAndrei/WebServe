@@ -17,7 +17,7 @@ public class Main {
                 final var filePath = Path.of(String.valueOf(Server.getFolderPath()), "/getmessages.html");
                 server.successfulResponse(responseStream, Files.probeContentType(filePath), Files.size(filePath));
                 Files.copy(filePath, responseStream);
-                responseStream.close();
+                responseStream.flush();
             } catch (IOException e) {
                 e.printStackTrace();
             }
