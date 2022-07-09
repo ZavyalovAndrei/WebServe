@@ -3,7 +3,10 @@ import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class Server {
 
@@ -11,7 +14,7 @@ public class Server {
     protected static final Path FILES_FOLDER_PATH = Path.of(".", "public");
     private Server server;
     private int port;
-    private ConcurrentHashMap<RequestType, ConcurrentHashMap<String, Handlers>> handlers = new ConcurrentHashMap<>() {{
+    protected ConcurrentHashMap<RequestType, ConcurrentHashMap<String, Handlers>> handlers = new ConcurrentHashMap<>() {{
         put(RequestType.GET, new ConcurrentHashMap<>());
         put(RequestType.POST, new ConcurrentHashMap<>());
 
@@ -53,7 +56,7 @@ public class Server {
         }
     }
 
-    private void notFoundResponse(BufferedOutputStream out) {
+    protected void notFoundResponse(BufferedOutputStream out) {
         try {
             out.write((
                     "HTTP/1.1 404 Not Found\r\n" +
@@ -132,6 +135,7 @@ public class Server {
         Runnable task = () -> server.runServer();
         Thread thread = new Thread(task);
         thread.start();
-
     }
+
+
 }
