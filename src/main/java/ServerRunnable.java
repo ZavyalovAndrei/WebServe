@@ -1,20 +1,26 @@
 import java.io.*;
 import java.net.*;
+import java.util.*;
 
 public class ServerRunnable implements Runnable {
-    private static Socket socket;
-    private static final int REQUEST_PARTS = 3;
 
-    public ServerRunnable(Socket socket) {
-        ServerRunnable.socket = socket;
+    private static final int LIMIT = 4096;
+    private static final int REQUEST_PARTS = 3;
+    private final Socket socket;
+    private final Server server;
+
+
+    public ServerRunnable(Socket socket, Server server) {
+        this.socket = socket;
+        this.server = server;
     }
 
     @Override
     public void run() {
         try {
-            final var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            final var in = new BufferedInputStream(socket.getInputStream());
             final var out = new BufferedOutputStream(socket.getOutputStream());
-            Server.connectionProcessing(parsRequest(in).getPath(), out);
+            server.processingConnection(parsRequest(in, out), out, socket);
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -26,19 +32,49 @@ public class ServerRunnable implements Runnable {
         }
     }
 
-    private Request parsRequest(BufferedReader in) {
+    private Request parsRequest(BufferedInputStream in, BufferedOutputStream out) {
         Request request = null;
         try {
-            final var requestLine = in.readLine();
-            final var parts = requestLine.split(" ");
-            if (parts.length != REQUEST_PARTS) {
-                socket.close();
+            in.mark(LIMIT);
+            final var buffer = new byte[LIMIT];
+            final var read = in.read(buffer);
+            final var requestLineDelimiter = new byte[]{'\r', '\n'};
+            final var requestLineEnd = indexOf(buffer, requestLineDelimiter, 0, read);
+            final var requestLine = new String(Arrays.copyOf(buffer, requestLineEnd)).split(" ");
+            if (requestLineEnd == -1 || !checkRequestLine(requestLine)) {
+                server.notFoundResponse(out);
             } else {
-                request = new Request(RequestType.valueOf(parts[0]), parts[1], parts[2]);
+                request = new Request(RequestType.valueOf(requestLine[0]), requestLine[1], requestLine[2]);
             }
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             e.printStackTrace();
         }
         return request;
+    }
+
+    private boolean checkRequestLine(String[] requestLine) {
+        if (requestLine.length != REQUEST_PARTS) {
+            return false;
+        }
+        if (!server.handlers.containsKey(RequestType.valueOf(requestLine[0]))) {
+            return false;
+        }
+        if (!requestLine[1].startsWith("/")) {
+            return false;
+        }
+        return true;
+    }
+
+    private int indexOf(byte[] array, byte[] target, int start, int max) {
+        outer:
+        for (int i = start; i < max - target.length + 1; i++) {
+            for (int j = 0; j < target.length; j++) {
+                if (array[i + j] != target[j]) {
+                    continue outer;
+                }
+            }
+            return i;
+        }
+        return -1;
     }
 }
