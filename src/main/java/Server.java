@@ -3,10 +3,7 @@ import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 public class Server {
 
@@ -17,7 +14,6 @@ public class Server {
     protected ConcurrentHashMap<RequestType, ConcurrentHashMap<String, Handlers>> handlers = new ConcurrentHashMap<>() {{
         put(RequestType.GET, new ConcurrentHashMap<>());
         put(RequestType.POST, new ConcurrentHashMap<>());
-
     }};
 
     public Server(int threadQuantity) {
@@ -43,6 +39,7 @@ public class Server {
     }
 
     protected void processingConnection(Request request, BufferedOutputStream out, Socket socket) {
+        System.out.println(request);
         try {
             if (((handlers.get(request.getRequestType())).get(request.getPath()) == null)) {
                 notFoundResponse(out);
@@ -136,6 +133,4 @@ public class Server {
         Thread thread = new Thread(task);
         thread.start();
     }
-
-
 }

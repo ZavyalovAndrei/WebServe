@@ -1,5 +1,3 @@
-import java.util.Arrays;
-
 public class Request {
 
     private final String path;
@@ -8,7 +6,7 @@ public class Request {
 
     @Override
     public String toString() {
-        return  "path = " + path + "\n" +
+        return "path = " + path + "\n" +
                 "protocol = " + protocol + "\n" +
                 "requestType = " + requestType;
     }
@@ -27,5 +25,3 @@ public class Request {
         return requestType;
     }
 }
-
-

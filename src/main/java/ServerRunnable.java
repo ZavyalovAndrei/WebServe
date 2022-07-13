@@ -9,7 +9,6 @@ public class ServerRunnable implements Runnable {
     private final Socket socket;
     private final Server server;
 
-
     public ServerRunnable(Socket socket, Server server) {
         this.socket = socket;
         this.server = server;
@@ -34,8 +33,6 @@ public class ServerRunnable implements Runnable {
 
     private Request parsRequest(BufferedInputStream in, BufferedOutputStream out) {
         Request request = null;
-        String path;
-        String fullPath;
         try {
             in.mark(LIMIT);
             final var buffer = new byte[LIMIT];
@@ -54,7 +51,7 @@ public class ServerRunnable implements Runnable {
         return request;
     }
 
-    private boolean checkRequestLine (String[] requestLine) {
+    private boolean checkRequestLine(String[] requestLine) {
         if (requestLine.length != REQUEST_PARTS) {
             return false;
         }
