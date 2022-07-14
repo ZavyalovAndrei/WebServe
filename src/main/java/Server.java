@@ -1,12 +1,13 @@
-import java.io.*;
-import java.net.*;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Server {
 
@@ -17,7 +18,6 @@ public class Server {
     protected ConcurrentHashMap<RequestType, ConcurrentHashMap<String, Handlers>> handlers = new ConcurrentHashMap<>() {{
         put(RequestType.GET, new ConcurrentHashMap<>());
         put(RequestType.POST, new ConcurrentHashMap<>());
-
     }};
 
     public Server(int threadQuantity) {
@@ -43,14 +43,6 @@ public class Server {
     }
 
     protected void processingConnection(Request request, BufferedOutputStream out, Socket socket) {
-       String filteredHandlerPath = handlers.get(request.getRequestType()).entrySet()
-                .stream().filter(x -> x.getKey().contains(request.getPath()))
-               .map(Map.Entry :: getKey).collect(Collectors.joining(""));
-
-
-
-
-        System.out.println(filteredHandlerPath);
         try {
             if (((handlers.get(request.getRequestType())).get(request.getPath()) == null)) {
                 notFoundResponse(out);
@@ -144,6 +136,4 @@ public class Server {
         Thread thread = new Thread(task);
         thread.start();
     }
-
-
 }
