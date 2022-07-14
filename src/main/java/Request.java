@@ -9,6 +9,7 @@ public class Request {
     private String[] protocol;
     private final RequestType requestType;
     private final List<NameValuePair> queryParams;
+    private final  List <String> body;
 
     @Override
     public String toString() {
@@ -17,11 +18,13 @@ public class Request {
                 "requestType = " + requestType;
     }
 
-    public Request(RequestType requestType, String path, String[] protocol, List<NameValuePair> queryParams) {
+    public Request(RequestType requestType, String path, String[] protocol, List<NameValuePair> queryParams,
+                   List<String> body) {
         this.requestType = requestType;
         this.path = path;
         this.protocol = protocol;
         this.queryParams = queryParams;
+        this.body = body;
     }
 
     public String getPath() {
@@ -41,5 +44,16 @@ public class Request {
 
     public List<NameValuePair> getQueryParams() {
         return queryParams;
+    }
+
+    public List<String> getPart(String name) {
+        List<String> result = body.stream()
+                .filter(param -> (param.substring(0, param.indexOf("=")).equals(name)))
+                .collect(Collectors.toList());
+        return result;
+    }
+
+    public List <String> getParts() {
+    return body;
     }
 }

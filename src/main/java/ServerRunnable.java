@@ -8,9 +8,7 @@ import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class ServerRunnable implements Runnable {
@@ -19,7 +17,8 @@ public class ServerRunnable implements Runnable {
     private static final int REQUEST_PARTS = 3;
     private final Socket socket;
     private final Server server;
-    private static final String FILTERING_PARAM = "key";
+    private static final String QUERY_FILTER = "key";
+    private static final String PARAM_FILTER = "value";
 
     public ServerRunnable(Socket socket, Server server) {
         this.socket = socket;
@@ -43,10 +42,23 @@ public class ServerRunnable implements Runnable {
                     System.out.println("\t" + ParamsValue);
                 }
                 System.out.println();
-                System.out.println("Values for param " + "\"" + FILTERING_PARAM + "\" :");
-                for (NameValuePair paramValue : request.getQueryParam(FILTERING_PARAM)) {
-                        System.out.println("\t" + paramValue.getValue());
+                System.out.println("Values for param " + "\"" + QUERY_FILTER + "\" :");
+                for (NameValuePair paramValue : request.getQueryParam(QUERY_FILTER)) {
+                    System.out.println("\t" + paramValue.getValue());
                 }
+                System.out.println();
+            }
+            if (request.getRequestType() != RequestType.GET) {
+               System.out.println("Parts: ");
+                for (String PartsValue : request.getParts()) {
+                    System.out.println("\t" + PartsValue);
+                }
+                System.out.println();
+                System.out.println("Filtered by "  + "\"" + PARAM_FILTER + "\" :");
+                for (String PartsValue : request.getPart(PARAM_FILTER)) {
+                    System.out.println("\t" + PartsValue);
+                }
+                System.out.println();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -61,6 +73,7 @@ public class ServerRunnable implements Runnable {
 
     private Request parsRequest(BufferedInputStream in, BufferedOutputStream out) {
         Request request = null;
+        List<String> body = null;
         String path;
         String fullPath;
         try {
@@ -70,7 +83,6 @@ public class ServerRunnable implements Runnable {
             final var requestLineDelimiter = new byte[]{'\r', '\n'};
             final var requestLineEnd = indexOf(buffer, requestLineDelimiter, 0, read);
             final var requestLine = new String(Arrays.copyOf(buffer, requestLineEnd)).split(" ");
-            // System.out.println("RequestType " + requestLine[0] + " Body " + requestLine[1] + " protocol " + requestLine[2]);
             if (requestLineEnd == -1 || !checkRequestLine(requestLine)) {
                 server.notFoundResponse(out);
             } else {
@@ -89,7 +101,28 @@ public class ServerRunnable implements Runnable {
                             .map(Map.Entry::getKey).collect(Collectors.joining(""));
                 }
                 List<NameValuePair> queryParams = URLEncodedUtils.parse(new URI(uri), Charset.forName("UTF-8"));
-                request = new Request(RequestType.valueOf(requestLine[0]), path, protocol, queryParams);
+                final var headersDelimiter = new byte[]{'\r', '\n', '\r', '\n'};
+                final var headersStart = requestLineEnd + requestLineDelimiter.length;
+                final var headersEnd = indexOf(buffer, headersDelimiter, headersStart, read);
+                if (headersEnd == -1) {
+                    server.notFoundResponse(out);
+                }
+                in.reset();
+                in.skip(headersStart);
+                final var headersBytes = in.readNBytes(headersEnd - headersStart);
+                final var headers = Arrays.asList(new String(headersBytes).split("\r\n"));
+                System.out.println(headers);
+                if (!requestLine[0].equals("GET")) {
+                    in.skip(headersDelimiter.length);
+                    final var contentLength = extractHeader(headers, "Content-Length");
+                    if (contentLength.isPresent()) {
+                        final var length = Integer.parseInt(contentLength.get());
+                        final var bodyBytes = in.readNBytes(length);
+
+                        body = new ArrayList<>(Arrays.asList(new String(bodyBytes).split("&")));
+                        }
+                }
+                request = new Request(RequestType.valueOf(requestLine[0]), path, protocol, queryParams, body);
             }
         } catch (IOException | RuntimeException | URISyntaxException e) {
             e.printStackTrace();
@@ -124,5 +157,13 @@ public class ServerRunnable implements Runnable {
             return i;
         }
         return -1;
+    }
+
+    private static Optional<String> extractHeader(List<String> headers, String header) {
+        return headers.stream()
+                .filter(o -> o.startsWith(header))
+                .map(o -> o.substring(o.indexOf(" ")))
+                .map(String::trim)
+                .findFirst();
     }
 }
